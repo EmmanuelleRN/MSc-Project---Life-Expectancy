@@ -1,5 +1,7 @@
 library(tidyverse)
 library(ggridges)
+library(countrycode)
+library(ggpubr)
 
 # Read dataset from World bank data
 dt <- read.csv("dataset/b0312c21-b332-4f49-b781-9c0aa9c13825_Data.csv", na.strings = "..")
@@ -18,12 +20,20 @@ dt_to_use <- dt_countries |>
   gather("year", "value", -c(Country.Name, Country.Code, Series.Name)) |>
   spread(Series.Name, value) |>
   janitor::clean_names() |>
-  mutate(year = str_remove(year, "X\\d{4}..YR"))
+  mutate(year = str_remove(year, "X\\d{4}..YR")) 
 
 # year as numeric
 dt_to_use <- dt_to_use |>
   mutate(year = as.numeric(gsub("[.]", "", dt_to_use$year)))
   
+# add region information
+dt_to_use <- dt_to_use |>
+  mutate(country_name = ifelse(country_name == "Turkiye", "Turkey", country_name)) |>
+  mutate(region = as.factor(countrycode(sourcevar = country_name, 
+                                        origin = "country.name",
+                                        destination = "region"))) |>
+  mutate(country_name = as.factor(country_name),
+         country_code = as.factor(country_code))
 
 dt_to_use |>
   ggplot() +
@@ -38,5 +48,17 @@ dt_to_use |>
 
 dt_to_use |>
   ggplot() +
+  aes(x = life_expectancy_at_birth_total_years) +
+  geom_histogram(fill = "orange", col = "white") +
+  facet_wrap(~region)
+
+dt_to_use |>
+  ggplot() +
   aes(x = life_expectancy_at_birth_total_years, y = year, group = year, fill = stat(x)) +
   geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01)
+
+dt_to_use |>
+  ggplot() +
+  aes(x = life_expectancy_at_birth_total_years, y = year, group = year, fill = stat(x)) +
+  geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+  facet_wrap(~region)
