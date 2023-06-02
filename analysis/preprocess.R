@@ -1,10 +1,19 @@
 library(caret)
+library(zoo)
 
 # Zero- and Near Zero-Variance Predictors
-nzv <- nearZeroVar(dt_to_use, saveMetrics= TRUE)
+nzv <- nearZeroVar(dt_filtered, saveMetrics= TRUE)
 nzv[nzv$nzv,][1:10,]
 
 zv <- apply(dt_to_use, 2, function(x) length(unique(x)) == 1)
+
+library(lares)
+
+x <- corr_cross(dt_filtered, # name of dataset
+           max_pvalue = 0.05, # display only significant correlations (at 5% level)
+           top = 400
+)
+
 
 # correlation
 descrCor <-  cor(dt_to_use %>% select(-c(country_name, country_code, region, year)), 

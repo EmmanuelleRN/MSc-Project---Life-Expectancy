@@ -5,11 +5,13 @@ library(ggpubr)
 
 # Read dataset from World bank data
 dt <- read.csv("dataset/b0312c21-b332-4f49-b781-9c0aa9c13825_Data.csv", na.strings = "..")
+dt_countries <- read.csv("dataset/P_Data_Extract_From_World_Development_Indicators_filtered/b99ba33f-2507-4508-90ff-3a41690c4277_Data.csv", na.strings = "..")
+dt_countries <- dt_countries[1:49910,]
 
 # Separate dataset
 dt_countries <- dt[1:82243,]
 dt_world_regions <- dt[82244:100435,]
-dt_world <- dt[100436:100819,]
+dt_world <- dt[100436:100814,]
 
 # remove original dataet for space
 rm(dt)
@@ -18,6 +20,14 @@ rm(dt)
 dt_to_use <- dt_countries |>
   select(-Series.Code) |>
   gather("year", "value", -c(Country.Name, Country.Code, Series.Name)) |>
+  spread(Series.Name, value) |>
+  janitor::clean_names() |>
+  mutate(year = str_remove(year, "X\\d{4}..YR")) 
+
+# Organise data in tidy format
+dt_to_use <- dt_world |>
+  select(-c(Country.Name, Country.Code, Series.Code)) |>
+  gather("year", "value", -Series.Name) |>
   spread(Series.Name, value) |>
   janitor::clean_names() |>
   mutate(year = str_remove(year, "X\\d{4}..YR")) 
