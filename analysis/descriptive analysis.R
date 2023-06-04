@@ -44,6 +44,8 @@ dt_to_use <- dt_to_use |>
 dt_filtered <- dt_to_use |>
   select(-all_of(vars_to_drop))
 
+is.na(dt_filtered) %>% colSums()
+
 library(doBy)
 summaryBy(. ~ region,
           data = dt_to_use,

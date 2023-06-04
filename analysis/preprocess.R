@@ -19,10 +19,11 @@ nzv[nzv$nzv,][1:10,]
 
 preprocess_recipe <- recipe(life_expectancy_at_birth_total_years ~ ., data = train_data) %>% 
   update_role(country_name, country_code, new_role = "ID") %>%
+  step_impute_knn(all_predictors(), neighbors = 3) %>%
   step_corr(all_numeric_predictors()) %>%
   step_normalize(na_rm = FALSE) %>% 
   step_dummy(all_nominal_predictors()) %>% 
-  step_zv(all_predictors())
+  step_zv(all_predictors()) 
 
 lr_mod <- 
   decision_tree(mode = "regression")
@@ -33,7 +34,7 @@ wflow <-
   add_recipe(preprocess_recipe)
 
 
-fit <- 
+fit_dec_tree <- 
   wflow %>% 
   fit(data = train_data)
 
@@ -42,6 +43,12 @@ fit %>%
   tidy()
 
 predict(fit, test_data)
+
+flights_aug <- 
+  augment(fit, test_data)
+
+flights_aug1 <- 
+  augment(fit_dec_tree, test_data)
 
 #zv <- apply(dt_to_use, 2, function(x) length(unique(x)) == 1)
 
