@@ -18,34 +18,27 @@ nzv <- nearZeroVar(dt_filtered, saveMetrics= TRUE)
 nzv[nzv$nzv,][1:10,]
 
 preprocess_recipe <- recipe(life_expectancy_at_birth_total_years ~ ., data = train_data) %>% 
-  update_role(country_name, country_code, new_role = "ID") %>%
+  update_role(country_name, country_code, region, new_role = "ID") %>%
   step_impute_knn(all_predictors(), neighbors = 3) %>%
   step_corr(all_numeric_predictors()) %>%
   step_normalize(na_rm = FALSE) %>% 
   step_dummy(all_nominal_predictors()) %>% 
   step_zv(all_predictors()) 
 
-lr_mod <- 
-  decision_tree(mode = "regression")
+lr_mod <- linear_reg()
 
-wflow <- 
-  workflow() %>% 
+wflow <- workflow() %>% 
   add_model(lr_mod) %>% 
   add_recipe(preprocess_recipe)
 
-
-fit_dec_tree <- 
-  wflow %>% 
+fit_linear_reg <- wflow %>% 
   fit(data = train_data)
 
-fit %>% 
-  extract_fit_parsnip() %>% 
+fit_linear_reg %>% 
+  workflows::extract_fit_parsnip() %>% 
   tidy()
 
-predict(fit, test_data)
-
-flights_aug <- 
-  augment(fit, test_data)
+pred_linear_reg <- augment(fit_linear_reg, test_data)
 
 flights_aug1 <- 
   augment(fit_dec_tree, test_data)

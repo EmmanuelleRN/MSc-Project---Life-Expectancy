@@ -1,5 +1,12 @@
 dt_to_use %>% summary()
 
+library(purrr)
+
+dt_to_use %>%
+  map_df(function(x) sum(is.na(x))) %>%
+  gather(feature, num_nulls) %>%
+  filter(num_nulls == 0)
+
 # each year has 217 observations
 # most recent years don't have most observations -> late notification
 dt_to_use |>
@@ -9,6 +16,17 @@ dt_to_use |>
   mutate(missing_pct = missing / 217 * 100) |>
   arrange(desc(missing_pct))
   #spread(year, value)
+
+# no notification in the years before 2000s
+dt_to_use |>
+  group_by(year) |>
+  summarise(across(where(is.numeric),  ~sum(is.na(.)))) |>
+  gather("series_name", "missing", -c(year)) |>
+  mutate(missing_pct = missing / 217 * 100) |>
+  arrange(desc(missing_pct)) %>% 
+  filter(year < 2000, missing_pct == 100) %>% 
+  select(series_name) %>% 
+  unique() %>% View()
 
 dt_to_use |>
   group_by(year, country_name) |>
@@ -37,9 +55,6 @@ dt_to_use |>
   summarise(missing_years = n()) |>
   filter(series_name %in% vars_to_drop)
 
-#we don't have the year of 2022 -> remove it
-dt_to_use <- dt_to_use |>
-  filter(year != 2022)
 
 dt_filtered <- dt_to_use |>
   select(-all_of(vars_to_drop))
