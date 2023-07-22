@@ -1,20 +1,22 @@
 library(tidyverse)
 library(ggridges)
+library(dplyr)
 library(countrycode)
 library(ggpubr)
 library(gtsummary)
 
 # Read dataset from World bank data
 dt <- read.csv("dataset/b0312c21-b332-4f49-b781-9c0aa9c13825_Data.csv", na.strings = "..")
-dt_countries <- read.csv("dataset/P_Data_Extract_From_World_Development_Indicators_filtered/b99ba33f-2507-4508-90ff-3a41690c4277_Data.csv", na.strings = "..")
-dt_countries <- dt_countries[1:49910,]
+
+#dt_countries <- read.csv("dataset/P_Data_Extract_From_World_Development_Indicators_filtered/b99ba33f-2507-4508-90ff-3a41690c4277_Data.csv", na.strings = "..")
+#dt_countries <- dt_countries[1:49910,]
 
 # Separate dataset
 dt_countries <- dt[1:82243,]
-dt_world_regions <- dt[82244:100435,]
-dt_world <- dt[100436:100814,]
+#dt_world_regions <- dt[82244:100435,]
+#dt_world <- dt[100436:100814,]
 
-# remove original dataet for space
+# remove original dataset for space
 rm(dt)
 
 # Organise data in tidy format
@@ -60,6 +62,7 @@ gghistogram(dt_to_use, x = "life_expectancy_at_birth_total_years",
 
 dt_to_use |>
   tbl_summary(
+    by = region,
     include = c(life_expectancy_at_birth_total_years),
     type = all_continuous() ~ "continuous2",
     statistic = all_continuous() ~ c("{median} ({p25}, {p75})", "{min}, {max}", "{mean} ± {sd}"),
@@ -67,6 +70,32 @@ dt_to_use |>
     digits = list(all_continuous() ~ 2)) %>%
   as_gt() %>%
   gt::as_latex()
+
+tbl <- 
+  names(dt_to_use%>% select(life_expectancy_at_birth_total_years, year)) %>%
+  map(
+    # build summary table for single category
+    ~ dt_to_use %>%
+      select(all_of(.x)) %>%
+      mutate(..true.. = TRUE) %>%
+      filter(complete.cases(.)) %>%
+      tbl_summary(
+        by = all_of(.x),
+        missing = "no",
+        statistic = ~"{n}", 
+        label = list(..true.. = .x)
+      ) %>%
+      # update column headers
+      modify_header(
+        all_stat_cols() ~ "**{level}**",
+        label = "**Category Assigned**"
+      )
+  ) %>%
+  # stack all tbls together
+  tbl_stack() %>%
+  # remove all footnotes
+  modify_footnote(all_stat_cols() ~ NA)
+
 
 dt_to_use |>
   filter(life_expectancy_at_birth_total_years < 30)
@@ -98,7 +127,19 @@ dt_to_use |>
 dt_to_use |>
   ggplot() +
   aes(x = life_expectancy_at_birth_total_years, y = year, group = year, fill = stat(x)) +
-  geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01)
+  geom_density_ridges_gradient(scale = 2, rel_min_height = 0.01, quantile_lines = TRUE, 
+                               vline_color = c("green"),
+                               quantile_fun = median) +
+  geom_density_ridges_gradient(
+    scale = 2,
+    rel_min_height = 0,
+    quantile_lines = TRUE,
+    vline_color = c("blue"),
+    fill = NA,
+    quantile_fun = mean
+  ) +
+  scale_fill_viridis_c(name = "Life \nExpectanc", option = "C") + 
+  theme_bw()
 
 dt_to_use |>
   ggplot() +
