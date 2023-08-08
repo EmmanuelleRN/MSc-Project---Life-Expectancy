@@ -7,6 +7,7 @@ library(rsample)
 # This enables the analysis to be reproducible when random numbers are used 
 set.seed(88)
 # Put 3/4 of the data into the training set 
+dt_filtered <- dt_filtered %>% select(!grep("death", names(dt_filtered)))
 data_split <- initial_split(dt_filtered %>% select(-region) %>% filter(!is.na(life_expectancy_at_birth_total_years)), prop = 3/4)
 
 # Create data frames for the two sets:
@@ -74,7 +75,14 @@ pred_linear_reg_metrics(pred_linear_reg, truth = life_expectancy_at_birth_total_
 pred_linear_reg_train <- augment(fit_linear_reg, train_data)
 
 pred_linear_reg_metrics_train <- metric_set(rmse, rsq, mae)
-pred_linear_reg_metrics_train(pred_linear_reg, truth = life_expectancy_at_birth_total_years, estimate = .pred)
+pred_linear_reg_metrics_train(pred_linear_reg_train, truth = life_expectancy_at_birth_total_years, estimate = .pred)
+
+pred_linear_reg_train |>
+  ggplot(aes(x = life_expectancy_at_birth_total_years , y = .pred)) + 
+  geom_point(alpha = .15) +
+  geom_abline(color = "red") + 
+  coord_obs_pred() + 
+  ylab("Predicted Life Expectancy")
 
 
 pred_rf <- augment(fit_rf, test_data)
@@ -157,7 +165,7 @@ rf <- rand_forest(
   min_n = tune()
 ) %>%
   set_mode("regression") %>%
-  set_engine("ranger")
+  set_engine("ranger", importance = "impurity")
 
 wflow_rf <- workflow() %>% 
   add_model(rf) %>% 
