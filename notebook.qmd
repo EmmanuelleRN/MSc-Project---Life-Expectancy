@@ -1,0 +1,120 @@
+---
+title: "Exploring Factors and Predicting Life Expectancy"
+format:
+  html:
+    toc: true
+    html-math-method: katex
+    css: styles.css
+author: "Emmanuelle Rodrigues Nunes"
+editor: visual
+---
+
+```{r}
+#| output: false
+
+#Load libraries that will be used for this work
+library(countrycode)
+library(dplyr)
+library(janitor)
+library(ggplot2)
+library(tidymodels)
+library(ggridges)
+library(vip)
+library(tidyr)
+library(stringr)
+```
+
+
+## Dataset
+
+Dataset obtained from the [World Bank Data](https://databank.worldbank.org/source/world-development-indicators#). The dataset has three datasets in one described below:
+
+-   Country view - Data per country per year
+
+-   Region view - Data per different regions per year
+
+-   World View - World life expectancy per year
+
+We are interested in the country view as it gives us more data and more detailed information about life expectancy.
+
+```{r}
+# Read dataset from World bank data
+dt <- read.csv("dataset/b0312c21-b332-4f49-b781-9c0aa9c13825_Data.csv", na.strings = "..")
+
+# Separate dataset
+dt_countries <- dt[1:82243,]
+
+# remove original dataset for space
+rm(dt)
+```
+
+Below, we can see the first three rows of the original dataset. 
+
+```{r}
+head(dt_countries, 3)
+```
+
+The data is not in a tidy format, i.e., is not ready for processing the data, so some transformations will be applied to the data to make it easier to manipulate and analyse the data. The transformations applied are:
+
+-   Remove country series columns as it gives the same information as the series name, that are the variables of our data, but in a coded format
+-   Pivot the data by transforming all the years columns are rows of the dataset
+-   Make series names the new columns of the dataset
+-   Clean the column names by replacing spaces and special characters to underscores
+-   The years have the format XYYYY..YRYYYY., and we are interested only on the YYYY information, so we need to extract it from the string
+
+```{r}
+dt_to_use <- dt_countries |>
+  # Remove series code as it is the code of the variables 
+  select(-Series.Code) |>
+  # Pivot data
+  gather("year", "value", -c(Country.Name, Country.Code, Series.Name)) |>
+  # Make Series names columns
+  spread(Series.Name, value) |>
+  # Clean names by replacing spaces and special characters to underscores
+  janitor::clean_names() |>
+  # Extract the year information for the years
+  mutate(year = stringr::str_remove(year, "X\\d{4}..YR")) 
+```
+
+Some extra transformation are needed before the analysis can be conducted:
+
+-   Transform the year to numeric
+-   Add the region information 
+-   Remove the 2022 columns as we don't have any data for that year
+
+```{r}
+# Year as numeric
+dt_to_use <- dt_to_use |>
+  mutate(year = as.numeric(gsub("[.]", "", dt_to_use$year)))
+  
+# Ddd region information
+dt_to_use <- dt_to_use |>
+  mutate(country_name = ifelse(country_name == "Turkiye", "Turkey", country_name)) |>
+  mutate(region = as.factor(countrycode(sourcevar = country_name, 
+                                        origin = "country.name",
+                                        destination = "region"))) |>
+  mutate(country_name = as.factor(country_name),
+         country_code = as.factor(country_code))
+
+# We don't have the year of 2022 -> remove it
+dt_to_use <- dt_to_use |>
+  filter(year != 2022)
+```
+
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
