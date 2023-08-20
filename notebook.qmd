@@ -24,6 +24,39 @@ library(tidyr)
 library(stringr)
 ```
 
+
+# Research Context and Problems to be Addressed
+
+Life Expectancy (LE) is a crucial metric for assessing population health; it is one of the factors that make up the Human Development Index (HDI), a summary of average achievements in critical dimensions of human development. 
+
+Life Expectation is a statistical measure of the population's longevity, that serves as a crucial indicator of the health and well-being of populations and different factors impact its value. 
+
+Governments, international organizations, and healthcare agencies use this type of research to inform public health interventions, design policies, and allocate resources effectively. Forecasting this measure and identifying the factors contributing to a determined life expectancy can assist governments, health and social services planning in investing in the proper future health trends for a particular country by identifying areas of uncertainty. 
+
+Risk factors contributing to life expectancy changes can include mortality, economic, psychosocial, and immunological factors such as GDP (Gross Domestic Product), alcohol and smoking consumption, BMI (Body Mass Index), infant and adult mortality rate, and healthcare expenditure.
+
+Besides these factors, recent studies have been focusing on the impacts of climate change on populations’ longevity and quality of life. 
+
+# Research Scope
+
+During the literature review, it was possible to identify areas of contribution to this research area, such as:
+
+-   Focusing on environmental variables and understanding the impact of ecological degradation on life expectancy. 
+-   Potential to use those variables with socioeconomic and health variables. 
+-   Opportunities to understand how Machine Learning compares and performs in answering this problem, as most research used traditional statistical techniques.
+
+This research uses environmental, demographic and socioeconomic metrics to investigate the possibility of accurately predicting global. The literature research outlined the lack of Machine Learning models being used in this task, as most papers and official bodies rely on standard statistical methodologies, giving us an opportunity to understand how Machine Learning performs in this type of work.
+
+It is also part of this work to understand not only the possibility of predicting life expectancy but also to understand factors that affect life expectancy, as being able to explain the reason why a location has a lower or higher life expectancy is important when trying to address the problem. 
+
+# Objectives
+
+This research project has the main objective of aiming to predict life expectancy and to determine the variables that affect life expectancy prediction. In order to properly answer the objective of this work, some additional questions need to be proposed:
+
+-   Is there a relationship between health, demographic, socioeconomic and environmental factors that can lead to understanding the world and global life expectancy?
+-   Can a regression model be developed to provide the life expectancy if there is an association?
+-   Would some regions not benefit from the model as much as others?
+
 # Dataset
 
 Dataset obtained from the [World Bank Data](https://databank.worldbank.org/source/world-development-indicators#). The dataset has three datasets in one described below:
