@@ -323,8 +323,8 @@ pred_linear_reg_test <- read.csv("pred_linear_reg.csv")
 ```
 
 ```{r}
-pred_linear_reg_metrics_train <- metric_set(rmse, rsq, mae)
-pred_linear_reg_metrics_train(pred_linear_reg_test, 
+pred_linear_reg_metrics_test <- metric_set(rmse, rsq, mae)
+pred_linear_reg_metrics_test(pred_linear_reg_test, 
                               truth = life_expectancy_at_birth_total_years, 
                               estimate = .pred)
 ```
@@ -343,7 +343,6 @@ keep_pred <- control_resamples(save_pred = TRUE, save_workflow = TRUE)
 ```
 
 We are also going to hypertune the number of neighbours of the model to make sure we are selecting the best model for our data.
-
 
 ```{r}
 #| eval: false
@@ -368,30 +367,29 @@ knn_cv <- wflow_knn %>%
 
 The table below shows the performance for the different numbers of neighbours used. We can see that when k = 4, we have the lowest RMSe and $R^2$ value.
 
-| Col1 | Col2 | Col3 | Col4 |
-|------|------|------|------|
-| 2    | RMSE |0.0852|0.0280|
-| 2    | $R^2$|0.991 |0.0007|
-| 3    | RMSE |0.826 |0.0280|
-| 3    | $R^2$|0.991 |0.0007|
-| 4    | RMSE |0.823 |0.0280|
-| 4    |$R^2$ |0.991 |0.0007|
-| 5    |RMSE  |0.836 |0.0273|
-| 5    |$R^2$ |0.991 |0.0007|
-| 10   |RMSE  |0.988 |0.0232|
-| 10   |$R^2$ |0.988 |0.0008| 
-| 15   |RMSE  |1.164 |0.0214| 
-| 15   |$R^2$ |0.983 |0.0009|
-
+| K    | Metric|Estimate| Error  |
+|------|-------|--------|--------|
+| 2    | RMSE  | 0.0852 | 0.0280 |
+| 2    | $R^2$ | 0.991  | 0.0007 |
+| 3    | RMSE  | 0.826  | 0.0280 |
+| 3    | $R^2$ | 0.991  | 0.0007 |
+| 4    | RMSE  | 0.823  | 0.0280 |
+| 4    | $R^2$ | 0.991  | 0.0007 |
+| 5    | RMSE  | 0.836  | 0.0273 |
+| 5    | $R^2$ | 0.991  | 0.0007 |
+| 10   | RMSE  | 0.988  | 0.0232 |
+| 10   | $R^2$ | 0.988  | 0.0008 |
+| 15   | RMSE  | 1.164  | 0.0214 |
+| 15   | $R^2$ | 0.983  | 0.0009 |
 
 ```{r}
 #| echo: false
+#| warning: false
 
-final_knn_ <- read.csv("pred_linear_reg_train.csv")
+load("models/final_knn_res_filtered.RData")
 ```
 
-
-We can then select the best model based on the RMSe metric and fit the data with the best model.
+We can then select the best model based on the RMSE metric and fit the data with the best model.
 
 ```{r}
 #| eval: false
@@ -406,11 +404,167 @@ final_knn <- finalize_model(
 )
 
 # Create workflow
-final_knn_mod <- workflow() %>%
-  add_recipe(preprocess_recipe) %>%
+final_knn_mod <- workflow() |>
+  add_recipe(preprocess_recipe) |>
   add_model(final_knn)
 
 # Fit the best model
-final_knn_res <- final_knn_mod %>%
+final_knn_res <- final_knn_mod |>
   last_fit(data_split)
+```
+
+With the best model fitted, we can collect the performance metrics of the model.
+
+```{r}
+final_knn_res |>
+  collect_metrics()
+```
+
+We can also look at the prediction vs actual life expectancy scatterplot to understand the fit of the model.
+
+```{r}
+collect_predictions(final_knn_res) |>
+  ggplot(aes(x = life_expectancy_at_birth_total_years , y = .pred)) + 
+  geom_point(alpha = .15) +
+  geom_abline(color = "red") + 
+  coord_obs_pred() + 
+  ylab("Predicted Life Expectancy")
+```
+
+## Random Forest
+
+For the Random Forest model, we will also fit the model with resampling using the k-fold cross validation technique with the same number of folds.
+
+We are also going to hypertune the following hyperparameters:
+
+-   **mtry:** Number of variables randomly sampled as candidates at each split;
+-   **ntree:** Number of trees to grow;
+-   **min_n:** Minimum numer of datapoints in a node
+
+We are creating 40 different combinations of these three hyperparameters.
+
+```{r}
+#| eval: false
+
+# Define model
+rf <- rand_forest(
+  mtry = tune(),
+  trees = tune(),
+  min_n = tune()
+) |>
+  set_mode("regression") |>
+  set_engine("ranger", importance = "impurity")
+
+# Create workflow
+wflow_rf <- workflow() |>
+  add_model(rf) |>
+  add_recipe(preprocess_recipe)
+
+tune_res <- tune_grid(
+  wflow_rf,
+  resamples = k_folds,
+  grid = 40
+)
+```
+
+The model with the best performance has a mtry of 119, ntrees of 1394 and min_n of 5.
+
+```{r}
+#| echo: false
+#| warning: false
+
+load("models/final_rf_res_filtered.RData")
+```
+
+We can then select the best model based on the RMSE metric and fit the data with the best model.
+
+```{r}
+#| eval: false
+
+# Select best model based on RMSE
+best_rf <- select_best(tune_res, "rmse")
+
+# Get best model
+final_rf <- finalize_model(
+  rf,
+  best_rf
+)
+
+# Create workflow
+final_rf_mod <- workflow() %>%
+  add_recipe(preprocess_recipe) %>%
+  add_model(final_rf)
+
+# Fit the best model
+final_rf_res <- final_rf_mod %>%
+  last_fit(data_split)
+```
+
+With the best model fitted, we can collect the performance metrics of the model.
+
+```{r}
+final_rf_res |>
+  collect_metrics()
+```
+
+We can also look at the prediction vs actual life expectancy scatterplot to understand the fit of the model.
+
+```{r}
+collect_predictions(final_rf_res) |>
+  ggplot(aes(x = life_expectancy_at_birth_total_years , y = .pred)) + 
+  geom_point(alpha = .15) +
+  geom_abline(color = "red") + 
+  coord_obs_pred() + 
+  ylab("Predicted Life Expectancy")
+```
+
+## Comparing the Models
+
+Table below compares the performance of the models on the testing set. We can see that the Random Forest has the smallest RMSE of all the models and the closest to 1 value when looking at $R^2$, making the Random Forest the best model of the three. Also, the difference in performance from the Random Forest to the Linear Regression justify the use of a more complex model.
+
+```{r}
+final_rf_res |>
+  collect_metrics() |>
+  mutate(model = "Random Forest") |>
+  bind_rows(final_knn_res |>
+    collect_metrics() |>
+    mutate(model = "KNN")) |>
+  bind_rows(pred_linear_reg_metrics_test(pred_linear_reg_test, 
+                              truth = life_expectancy_at_birth_total_years, 
+                              estimate = .pred)|>
+    mutate(model = "Linear Regression")) |>
+  select(-c(.estimator, .config))
+```
+
+# Factors that Affect Life Expectancy
+
+With the best model selected we can now understand the factors that affect life expectancy.
+
+```{r}
+final_rf_res |>
+  extract_fit_parsnip() |>
+  vip(num_features = 10)
+```
+
+# Fairness for all regions
+
+We can understand if all regions would benefit from the model proposed.
+
+```{r}
+rf_pred <- augment(final_rf_res)
+
+rf_pred <- rf_pred |> 
+  mutate(region = as.factor(countrycode(sourcevar = country_name, 
+                                        origin = "country.name",
+                                        destination = "region")))
+
+rf_pred |>
+  group_by(region) |>
+  summarise(rmse = sqrt(sum((life_expectancy_at_birth_total_years - .pred)^2) / n()),
+            mae = sum(abs(life_expectancy_at_birth_total_years - .pred)) / n(),
+            n = n(),
+            max = max(life_expectancy_at_birth_total_years - .pred),
+            min = min(life_expectancy_at_birth_total_years - .pred),
+            mean = mean(life_expectancy_at_birth_total_years - .pred),
+            sd = sd(life_expectancy_at_birth_total_years - .pred))
 ```
