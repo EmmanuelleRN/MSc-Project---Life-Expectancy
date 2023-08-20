@@ -97,7 +97,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#dataset" id="toc-dataset" class="nav-link active" data-scroll-target="#dataset">Dataset</a>
+  <li><a href="#research-context-and-problems-to-be-addressed" id="toc-research-context-and-problems-to-be-addressed" class="nav-link active" data-scroll-target="#research-context-and-problems-to-be-addressed">Research Context and Problems to be Addressed</a></li>
+  <li><a href="#research-scope" id="toc-research-scope" class="nav-link" data-scroll-target="#research-scope">Research Scope</a></li>
+  <li><a href="#objectives" id="toc-objectives" class="nav-link" data-scroll-target="#objectives">Objectives</a></li>
+  <li><a href="#dataset" id="toc-dataset" class="nav-link" data-scroll-target="#dataset">Dataset</a>
   <ul class="collapse">
   <li><a href="#transformation-to-tidy-format" id="toc-transformation-to-tidy-format" class="nav-link" data-scroll-target="#transformation-to-tidy-format">Transformation to Tidy Format</a></li>
   <li><a href="#response-variable" id="toc-response-variable" class="nav-link" data-scroll-target="#response-variable">Response Variable</a></li>
@@ -160,6 +163,34 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyr)</span>
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stringr)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
+<section id="research-context-and-problems-to-be-addressed" class="level1">
+<h1>Research Context and Problems to be Addressed</h1>
+<p>Life Expectancy (LE) is a crucial metric for assessing population health; it is one of the factors that make up the Human Development Index (HDI), a summary of average achievements in critical dimensions of human development.</p>
+<p>Life Expectation is a statistical measure of the population’s longevity, that serves as a crucial indicator of the health and well-being of populations and different factors impact its value.</p>
+<p>Governments, international organizations, and healthcare agencies use this type of research to inform public health interventions, design policies, and allocate resources effectively. Forecasting this measure and identifying the factors contributing to a determined life expectancy can assist governments, health and social services planning in investing in the proper future health trends for a particular country by identifying areas of uncertainty.</p>
+<p>Risk factors contributing to life expectancy changes can include mortality, economic, psychosocial, and immunological factors such as GDP (Gross Domestic Product), alcohol and smoking consumption, BMI (Body Mass Index), infant and adult mortality rate, and healthcare expenditure.</p>
+<p>Besides these factors, recent studies have been focusing on the impacts of climate change on populations’ longevity and quality of life.</p>
+</section>
+<section id="research-scope" class="level1">
+<h1>Research Scope</h1>
+<p>During the literature review, it was possible to identify areas of contribution to this research area, such as:</p>
+<ul>
+<li>Focusing on environmental variables and understanding the impact of ecological degradation on life expectancy.</li>
+<li>Potential to use those variables with socioeconomic and health variables.</li>
+<li>Opportunities to understand how Machine Learning compares and performs in answering this problem, as most research used traditional statistical techniques.</li>
+</ul>
+<p>This research uses environmental, demographic and socioeconomic metrics to investigate the possibility of accurately predicting global. The literature research outlined the lack of Machine Learning models being used in this task, as most papers and official bodies rely on standard statistical methodologies, giving us an opportunity to understand how Machine Learning performs in this type of work.</p>
+<p>It is also part of this work to understand not only the possibility of predicting life expectancy but also to understand factors that affect life expectancy, as being able to explain the reason why a location has a lower or higher life expectancy is important when trying to address the problem.</p>
+</section>
+<section id="objectives" class="level1">
+<h1>Objectives</h1>
+<p>This research project has the main objective of aiming to predict life expectancy and to determine the variables that affect life expectancy prediction. In order to properly answer the objective of this work, some additional questions need to be proposed:</p>
+<ul>
+<li>Is there a relationship between health, demographic, socioeconomic and environmental factors that can lead to understanding the world and global life expectancy?</li>
+<li>Can a regression model be developed to provide the life expectancy if there is an association?</li>
+<li>Would some regions not benefit from the model as much as others?</li>
+</ul>
+</section>
 <section id="dataset" class="level1">
 <h1>Dataset</h1>
 <p>Dataset obtained from the <a href="https://databank.worldbank.org/source/world-development-indicators#">World Bank Data</a>. The dataset has three datasets in one described below:</p>
