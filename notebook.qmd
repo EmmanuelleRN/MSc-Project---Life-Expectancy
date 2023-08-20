@@ -24,8 +24,7 @@ library(tidyr)
 library(stringr)
 ```
 
-
-## Dataset
+# Dataset
 
 Dataset obtained from the [World Bank Data](https://databank.worldbank.org/source/world-development-indicators#). The dataset has three datasets in one described below:
 
@@ -48,11 +47,13 @@ dt_countries <- dt[1:82243,]
 rm(dt)
 ```
 
-Below, we can see the first three rows of the original dataset. 
+Below, we can see the first three rows of the original dataset.
 
 ```{r}
 head(dt_countries, 3)
 ```
+
+## Transformation to Tidy Format
 
 The data is not in a tidy format, i.e., is not ready for processing the data, so some transformations will be applied to the data to make it easier to manipulate and analyse the data. The transformations applied are:
 
@@ -79,7 +80,7 @@ dt_to_use <- dt_countries |>
 Some extra transformation are needed before the analysis can be conducted:
 
 -   Transform the year to numeric
--   Add the region information 
+-   Add the region information
 -   Remove the 2022 columns as we don't have any data for that year
 
 ```{r}
@@ -101,20 +102,315 @@ dt_to_use <- dt_to_use |>
   filter(year != 2022)
 ```
 
+## Response Variable
 
-## Running Code
+We can understand a bit more about the response variable by doing a brief descriptive analysis.
 
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+Below, we can see the histogram of the life expectancy. It is possible to see that the data is left-skewed, with an outlier observation of life expectancy being less than 30 years and the peak being around 72 years.
 
 ```{r}
-1 + 1
+#| warning: false
+dt_to_use |>
+  ggplot() +
+  aes(x = life_expectancy_at_birth_total_years) +
+  geom_histogram(fill = "orange", col = "white")
 ```
 
-You can add options to executable code like this
+Below we can see a table with the summary statistics of the life expectancy. The minimum life expectancy is approximately 42 years and the maximum is 85 years. The mean life expectancy across the different years and countries is 70 years and the median is around 72 years.
+
+```{r}
+dt_to_use |> 
+  summarise(median = median(life_expectancy_at_birth_total_years, na.rm = TRUE), 
+            iqr = IQR(life_expectancy_at_birth_total_years, na.rm = TRUE), 
+            mean = mean(life_expectancy_at_birth_total_years, na.rm = TRUE), 
+            sd = sd(life_expectancy_at_birth_total_years, na.rm = TRUE), 
+            min = min(life_expectancy_at_birth_total_years, na.rm = TRUE), 
+            max = max(life_expectancy_at_birth_total_years, na.rm = TRUE))
+```
+
+We can also see the life expectancy distribution per year. The green line represents the median life expectancy at birth, and the blue line represents the mean life expectancy at birth. It is possible to see that there is a positive trend with the overall distribution tending for people to live longer as the years pass, but the peak of life expectancy seems to have decreased from 2020 compared to the previous years.
+
+```{r}
+#| warning: false
+dt_to_use |>
+  ggplot() +
+  aes(x = life_expectancy_at_birth_total_years, y = year, group = year, fill = stat(x)) +
+  geom_density_ridges_gradient(scale = 2, rel_min_height = 0.01, quantile_lines = TRUE, 
+                               vline_color = c("green"),
+                               quantile_fun = median) +
+  geom_density_ridges_gradient(
+    scale = 2,
+    rel_min_height = 0,
+    quantile_lines = TRUE,
+    vline_color = c("blue"),
+    fill = NA,
+    quantile_fun = mean
+  ) +
+  scale_fill_viridis_c(name = "Life \nExpectanc", option = "C") + 
+  theme_bw()
+```
+
+The table below displays the summary statistics of life expectancy per different regions. The region with the lowest life expectancy is the Sub-Saharan Africa followed by South Asia.
+
+```{r}
+dt_to_use |>
+  group_by(region) |>
+  summarise(n_countries = n_distinct(country_name),
+            median = median(life_expectancy_at_birth_total_years, na.rm = TRUE), 
+            iqr = IQR(life_expectancy_at_birth_total_years, na.rm = TRUE), 
+            mean = mean(life_expectancy_at_birth_total_years, na.rm = TRUE), 
+            sd = sd(life_expectancy_at_birth_total_years, na.rm = TRUE), 
+            min = min(life_expectancy_at_birth_total_years, na.rm = TRUE), 
+            max = max(life_expectancy_at_birth_total_years, na.rm = TRUE))
+```
+
+# Data Preprocessing
+
+The data preprocessing can be handled during the recipe steps available within the tidymodels functionality. Still, first we will check the variables that needed to be removed if they contain more than 50% of their values missing.
+
+## Missing Values
+
+We are going to remove the variables that don't have any information for any country for over 50% of the time.
+
+```{r}
+vars_to_drop <- dt_to_use |>
+  # Group by year
+  group_by(year) |>
+  # Get the missing information for all numeric variables per year
+  summarise(across(where(is.numeric),  ~sum(is.na(.)))) |>
+  # Pivot data
+  gather("series_name", "missing", -c(year)) |>
+  # Retain only the data that is missing for all the countries
+  filter(missing == 217) |>
+  # Group by variable
+  group_by(series_name) |>
+  # Count the years that the information is been missing
+  summarise(missing_years = n()) |>
+  # Calculate missing percentage
+  mutate(pct_missing = missing_years / 24 * 100) |>
+  arrange(desc(missing_years)) |>
+  # Get the variables that are missing for more than 50% of the time
+  filter(pct_missing > 50) %>%
+  # Get the variables names
+  .$series_name
+
+dt_filtered <- dt_to_use |>
+  select(-all_of(vars_to_drop))
+```
+
+## Preprocessing Recipe
 
 ```{r}
 #| echo: false
-2 * 2
+dt_filtered <- dt_filtered %>% select(!grep("death", names(dt_filtered)))
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+Every transformation for the preprocessing step is done in the training step and applied to the testing set. So, first we need to split the data into these different partitions.
+
+```{r}
+# Fix the random numbers by setting the seed 
+# This enables the analysis to be reproducible when random numbers are used 
+set.seed(88)
+# Put 3/4 of the data into the training set 
+
+data_split <- initial_split(dt_filtered |> 
+                              select(-region) |>
+                              filter(!is.na(life_expectancy_at_birth_total_years)), 
+                            prop = 3/4)
+
+# Create data frames for the two sets:
+train_data <- training(data_split)
+test_data  <- testing(data_split)
+```
+
+Now, we can create the recipe for the preprocessing of the data.
+
+```{r}
+(preprocess_recipe <- recipe(life_expectancy_at_birth_total_years ~ ., 
+                            data = train_data) |>
+  update_role(country_name, country_code, new_role = "ID") |>
+  step_impute_knn(all_predictors(), neighbors = 3) |>
+  step_corr(all_numeric_predictors()) |>
+  step_normalize(na_rm = FALSE) |>
+  step_dummy(all_nominal_predictors()) |>
+  step_zv(all_predictors()))
+```
+
+# Modelling
+
+For the modelling steps, three models will be used:
+
+-   Linear Regression
+-   KNN
+-   Random Forest
+
+## Linear Regression
+
+The linear regression model will be used a baseline model, i.e., for comparison with the other two models.
+
+We first need to define the linear regression model. In R, we can train a model by frist creating a worflow, where we add the model and the preprocessing recipe. And then, we fit the data using the workflow.
+
+```{r}
+#| eval: false
+
+# Define model
+lr_mod <- linear_reg()
+
+# Create workflow
+wflow <- workflow() |> 
+  # Add model
+  add_model(lr_mod) |>
+  # Add recipe
+  add_recipe(preprocess_recipe)
+
+# Fit model to the training data
+fit_linear_reg <- wflow |>
+  fit(data = train_data)
+```
+
+```{r}
+#| echo: false
+load(file = "models/lin_reg_fit_filtered.RData")
+```
+
+Once the model is fitted, it is possible to extract the elements of the model.
+
+```{r}
+fit_linear_reg |>
+  workflows::extract_fit_parsnip() |>
+  tidy()
+```
+
+### Performance on the Training Set
+
+With the model trained, we can check the performance, first, on the training set.
+
+```{r}
+#| eval: false
+
+pred_linear_reg_train <- augment(fit_linear_reg, train_data)
+```
+
+```{r}
+#| echo: false
+
+pred_linear_reg_train <- read.csv("pred_linear_reg_train.csv")
+```
+
+The performance metrics we are interested in are the RMSE, $R^2$ and the MAE.
+
+```{r}
+pred_linear_reg_metrics_train <- metric_set(rmse, rsq, mae)
+pred_linear_reg_metrics_train(pred_linear_reg_train, 
+                              truth = life_expectancy_at_birth_total_years, 
+                              estimate = .pred)
+```
+
+### Performance on the Test Set
+
+We can also check the performance on the testing set to understand how well the model is generalising on unseen data.
+
+```{r}
+#| eval: false
+
+pred_linear_reg_test <- augment(fit_linear_reg, test_data)
+```
+
+```{r}
+#| echo: false
+
+pred_linear_reg_test <- read.csv("pred_linear_reg.csv")
+```
+
+```{r}
+pred_linear_reg_metrics_train <- metric_set(rmse, rsq, mae)
+pred_linear_reg_metrics_train(pred_linear_reg_test, 
+                              truth = life_expectancy_at_birth_total_years, 
+                              estimate = .pred)
+```
+
+## KNN
+
+For the KNN model, we will fit the model with resampling using the k-fold corss validation technique. The number of folds is 10.
+
+```{r}
+#| eval: false
+
+k_folds <- vfold_cv(train_data, v = 10)
+
+keep_pred <- control_resamples(save_pred = TRUE, save_workflow = TRUE)
+
+```
+
+We are also going to hypertune the number of neighbours of the model to make sure we are selecting the best model for our data.
+
+
+```{r}
+#| eval: false
+
+## Create a grid of hyperparameter values to test
+k_grid <- tibble(neighbors = c(2, 3, 4, 5, 10, 15, 25, 45, 60, 80, 100))
+
+# Define model
+knn_mod <- nearest_neighbor(neighbors = tune()) %>% 
+  set_engine("kknn") %>% 
+  set_mode("regression")
+
+# Create workflow
+wflow_knn <- workflow() %>% 
+  add_model(knn_mod) %>% 
+  add_recipe(preprocess_recipe)
+
+knn_cv <- wflow_knn %>% 
+  tune_grid(resamples = k_folds,
+            grid = k_grid)
+```
+
+The table below shows the performance for the different numbers of neighbours used. We can see that when k = 4, we have the lowest RMSe and $R^2$ value.
+
+| Col1 | Col2 | Col3 | Col4 |
+|------|------|------|------|
+| 2    | RMSE |0.0852|0.0280|
+| 2    | $R^2$|0.991 |0.0007|
+| 3    | RMSE |0.826 |0.0280|
+| 3    | $R^2$|0.991 |0.0007|
+| 4    | RMSE |0.823 |0.0280|
+| 4    |$R^2$ |0.991 |0.0007|
+| 5    |RMSE  |0.836 |0.0273|
+| 5    |$R^2$ |0.991 |0.0007|
+| 10   |RMSE  |0.988 |0.0232|
+| 10   |$R^2$ |0.988 |0.0008| 
+| 15   |RMSE  |1.164 |0.0214| 
+| 15   |$R^2$ |0.983 |0.0009|
+
+
+```{r}
+#| echo: false
+
+final_knn_ <- read.csv("pred_linear_reg_train.csv")
+```
+
+
+We can then select the best model based on the RMSe metric and fit the data with the best model.
+
+```{r}
+#| eval: false
+
+# Select best model based on RMSE
+best_knn <- select_best(knn_cv, "rmse")
+
+# Get the final model
+final_knn <- finalize_model(
+  knn_mod,
+  best_knn
+)
+
+# Create workflow
+final_knn_mod <- workflow() %>%
+  add_recipe(preprocess_recipe) %>%
+  add_model(final_knn)
+
+# Fit the best model
+final_knn_res <- final_knn_mod %>%
+  last_fit(data_split)
+```
